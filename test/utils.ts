@@ -21,7 +21,7 @@ export const nativeTokenAddress = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 export const maxContractSize = 24576;
 
 export async function deployContractsFixture() {
-  const [Alice, Bob, Caro, Dave, Ivy] = await ethers.getSigners();
+  const [Alice, Bob, Caro, Dave, Eve, Ivy] = await ethers.getSigners();
 
   const EnReachProtocolFactory = await ethers.getContractFactory("EnReachProtocol");
   expect(EnReachProtocolFactory.bytecode.length / 2).lessThan(maxContractSize);
@@ -38,7 +38,7 @@ export async function deployContractsFixture() {
   const erc20 = MockERC20__factory.connect(await MockERC20.getAddress(), provider);
 
   return { 
-    Alice, Bob, Caro, Dave, protocol, settings, erc20
+    Alice, Bob, Caro, Dave, Eve, Ivy, protocol, settings, erc20
   };
 
 }

@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
+import "../libs/TokensTransfer.sol";
 import "../interfaces/IMerkleDistributor.sol";
+import "../settings/ProtocolOwner.sol";
 
-contract MerkleDistributor is IMerkleDistributor {
-  using SafeERC20 for IERC20;
-
+contract MerkleDistributor is IMerkleDistributor, ProtocolOwner {
   address public immutable override token;
   bytes32 public immutable override merkleRoot;
 
   // This is a packed array of booleans.
   mapping(uint256 => uint256) private claimedBitMap;
 
-  constructor(address _token, bytes32 _merkleRoot) {
+  constructor(address _protocol, address _token, bytes32 _merkleRoot) ProtocolOwner(_protocol) {
     token = _token;
     merkleRoot = _merkleRoot;
   }
@@ -35,17 +34,33 @@ contract MerkleDistributor is IMerkleDistributor {
   function claim(
     uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof
   ) public virtual override {
-    if (isClaimed(index)) revert AlreadyClaimed();
+    require(!isClaimed(index), "Already claimed");
 
     // Verify the merkle proof.
     bytes32 node = keccak256(abi.encodePacked(index, account, amount));
-    if (!MerkleProof.verify(merkleProof, merkleRoot, node)) revert InvalidProof();
+    require(MerkleProof.verify(merkleProof, merkleRoot, node), "Invalid proof");
 
     // Mark it claimed and send the token.
     _setClaimed(index);
-    IERC20(token).safeTransfer(account, amount);
-
+    if (amount > 0) {
+      TokensTransfer.transferTokens(token, address(this), account, amount);
+    }
+    
     emit Claimed(index, account, amount);
+  }
+
+  /* ========== RESTRICTED FUNCTIONS ========== */
+
+  function withdraw(address recipient, uint256 amount) external onlyOwner {
+    require(recipient != address(0), "Invalid recipient");
+    require(amount > 0, "Invalid amount");
+
+    uint256 balance = IERC20(token).balanceOf(address(this));
+    if (amount <= balance) {
+      TokensTransfer.transferTokens(token, address(this), _msgSender(), amount);
+    }
+
+    emit Withdrawn(_msgSender(), recipient, amount);
   }
 
   /* ========== INTERNAL FUNCTIONS ========== */
@@ -60,6 +75,5 @@ contract MerkleDistributor is IMerkleDistributor {
 
   event Claimed(uint256 index, address account, uint256 amount);
 
-  error AlreadyClaimed();
-  error InvalidProof();
+  event Withdrawn(address indexed owner, address recipient, uint256 amount);
 }
