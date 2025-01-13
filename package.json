@@ -25,6 +25,7 @@
     "chai": "^4.2.0",
     "dayjs": "^1.11.7",
     "dotenv": "^16.0.2",
+    "ethereumjs-util": "^7.1.5",
     "ethers": "^6.11.1",
     "hardhat": "^2.22.1",
     "hardhat-abi-exporter": "^2.10.1",
