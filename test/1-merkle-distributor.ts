@@ -18,7 +18,8 @@ describe('Merkle Distributor', () => {
     const caroAmount = ethers.parseUnits('0.01', await erc20.decimals());
     const daveAmount = ethers.parseUnits('6.009', await erc20.decimals());
     const eveAmount = ethers.parseUnits('0', await erc20.decimals());
-    const totalAmount = aliceAmount + bobAmount + caroAmount + daveAmount + eveAmount;
+    const daveAmount2 = ethers.parseUnits('888888888888.009', await erc20.decimals());
+    const totalAmount = aliceAmount + bobAmount + caroAmount + daveAmount + eveAmount + daveAmount2;
 
     const distributionList = [
       { account: Alice.address, amount: aliceAmount },
@@ -26,6 +27,7 @@ describe('Merkle Distributor', () => {
       { account: Caro.address, amount: caroAmount },
       { account: Dave.address, amount: daveAmount },
       { account: Eve.address, amount: eveAmount },
+      { account: Dave.address, amount: daveAmount2 },
     ];
     const merkleTree = new BalanceTree(distributionList);
 
@@ -77,6 +79,29 @@ describe('Merkle Distributor', () => {
       [await merkleDistributor.getAddress(), Eve.address],
       [0, 0]
     );
+
+    // Dave claim his first rewards
+    trans = await merkleDistributor.connect(Dave).claim(3, Dave.address, daveAmount, merkleTree.getProof(3, Dave.address, daveAmount));
+    await trans.wait();
+    await expect(trans)
+      .to.emit(merkleDistributor, 'Claimed').withArgs(3, Dave.address, daveAmount);
+    await expect(trans).to.changeTokenBalances(
+      erc20,
+      [await merkleDistributor.getAddress(), Dave.address],
+      [-daveAmount, daveAmount]
+    );
+
+    // Dave claim his second rewards
+    trans = await merkleDistributor.connect(Dave).claim(5, Dave.address, daveAmount2, merkleTree.getProof(5, Dave.address, daveAmount2));
+    await trans.wait();
+    await expect(trans)
+      .to.emit(merkleDistributor, 'Claimed').withArgs(5, Dave.address, daveAmount2);
+    await expect(trans).to.changeTokenBalances(
+      erc20,
+      [await merkleDistributor.getAddress(), Dave.address],
+      [-daveAmount2, daveAmount2]
+    );
+
 
   });
 
