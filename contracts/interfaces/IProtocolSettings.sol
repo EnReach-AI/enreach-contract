@@ -7,8 +7,6 @@ interface IProtocolSettings {
 
   function decimals() external view returns (uint256);
 
-  function isValidParam(bytes32 param, uint256 value) external view returns (bool);
-
-  function paramDefaultValue(bytes32 param) external view returns (uint256);
+  function paramValue(bytes32 param) external view returns (uint256);
   
 }

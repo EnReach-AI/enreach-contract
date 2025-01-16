@@ -3,8 +3,8 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-import "../libs/TokensTransfer.sol";
 import "../interfaces/IMerkleDistributor.sol";
+import "../libs/TokensTransfer.sol";
 import "../settings/ProtocolOwner.sol";
 
 contract MerkleDistributor is IMerkleDistributor, ProtocolOwner {

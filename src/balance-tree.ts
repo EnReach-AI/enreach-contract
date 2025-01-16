@@ -5,11 +5,27 @@ export default class BalanceTree {
   private readonly tree: MerkleTree;
 
   constructor(balances: { account: string; amount: bigint }[]) {
+    const hasDuplicateAccounts = BalanceTree.hasDuplicateAccounts(balances);
+    if (hasDuplicateAccounts) {
+      throw new Error('Duplicate accounts detected');
+    }
+
     this.tree = new MerkleTree(
       balances.map(({ account, amount }, index) => {
         return BalanceTree.toNode(index, account, amount)
       })
     )
+  }
+
+  private static hasDuplicateAccounts(balances: { account: string; amount: bigint }[]): boolean {
+    const seen = new Set<string>();
+    for (const { account } of balances) {
+      if (seen.has(account)) {
+        return true;
+      }
+      seen.add(account);
+    }
+    return false;
   }
 
   public static verifyProof(

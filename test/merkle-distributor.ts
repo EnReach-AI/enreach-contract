@@ -19,9 +19,9 @@ describe('Merkle Distributor', () => {
     const daveAmount = ethers.parseUnits('6.009', await erc20.decimals());
     const eveAmount = ethers.parseUnits('0', await erc20.decimals());
     const daveAmount2 = ethers.parseUnits('888888888888.009', await erc20.decimals());
-    const totalAmount = aliceAmount + bobAmount + caroAmount + daveAmount + eveAmount + daveAmount2;
+    const totalAmount = aliceAmount + bobAmount + caroAmount + daveAmount + eveAmount;
 
-    const distributionList = [
+    let distributionList = [
       { account: Alice.address, amount: aliceAmount },
       { account: Bob.address, amount: bobAmount },
       { account: Caro.address, amount: caroAmount },
@@ -29,6 +29,9 @@ describe('Merkle Distributor', () => {
       { account: Eve.address, amount: eveAmount },
       { account: Dave.address, amount: daveAmount2 },
     ];
+    expect(() => new BalanceTree(distributionList)).to.throw("Duplicate accounts detected");
+    
+    distributionList = distributionList.slice(0, -1);
     const merkleTree = new BalanceTree(distributionList);
 
     const MerkleDistributor = await ethers.getContractFactory('MerkleDistributor');
@@ -68,9 +71,20 @@ describe('Merkle Distributor', () => {
     await expect(merkleDistributor.connect(Caro).claim(2, Caro.address, bobAmount, bobProof)).to.be.revertedWith(/Invalid proof/);
     await expect(merkleDistributor.connect(Caro).claim(2, Caro.address, caroAmount, bobProof)).to.be.revertedWith(/Invalid proof/);
 
+    // Dave claim his rewards
+    let trans = await merkleDistributor.connect(Dave).claim(3, Dave.address, daveAmount, merkleTree.getProof(3, Dave.address, daveAmount));
+    await trans.wait();
+    await expect(trans)
+      .to.emit(merkleDistributor, 'Claimed').withArgs(3, Dave.address, daveAmount);
+    await expect(trans).to.changeTokenBalances(
+      erc20,
+      [await merkleDistributor.getAddress(), Dave.address],
+      [-daveAmount, daveAmount]
+    );
+    
     // Eve's rewards amount is 0, he could still claim, but no token transferred
     const eveProof = merkleTree.getProof(4, Eve.address, eveAmount);
-    let trans = await merkleDistributor.connect(Eve).claim(4, Eve.address, eveAmount, eveProof);
+    trans = await merkleDistributor.connect(Eve).claim(4, Eve.address, eveAmount, eveProof);
     await trans.wait();
     await expect(trans)
       .to.emit(merkleDistributor, 'Claimed').withArgs(4, Eve.address, 0);
@@ -80,27 +94,6 @@ describe('Merkle Distributor', () => {
       [0, 0]
     );
 
-    // Dave claim his first rewards
-    trans = await merkleDistributor.connect(Dave).claim(3, Dave.address, daveAmount, merkleTree.getProof(3, Dave.address, daveAmount));
-    await trans.wait();
-    await expect(trans)
-      .to.emit(merkleDistributor, 'Claimed').withArgs(3, Dave.address, daveAmount);
-    await expect(trans).to.changeTokenBalances(
-      erc20,
-      [await merkleDistributor.getAddress(), Dave.address],
-      [-daveAmount, daveAmount]
-    );
-
-    // Dave claim his second rewards
-    trans = await merkleDistributor.connect(Dave).claim(5, Dave.address, daveAmount2, merkleTree.getProof(5, Dave.address, daveAmount2));
-    await trans.wait();
-    await expect(trans)
-      .to.emit(merkleDistributor, 'Claimed').withArgs(5, Dave.address, daveAmount2);
-    await expect(trans).to.changeTokenBalances(
-      erc20,
-      [await merkleDistributor.getAddress(), Dave.address],
-      [-daveAmount2, daveAmount2]
-    );
 
 
   });
