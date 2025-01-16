@@ -22,7 +22,7 @@ contract ProtocolSettings is IProtocolSettings, ProtocolOwner, ReentrancyGuard {
     _treasury = _treasury_;
 
     // Activation day of newly submitted rewards distribution root
-    _upsertParamValue("RewardsActivationDelay", 7 days);
+    _upsertParamValue("RewardsActivationDelay", 1 days);
   }
 
   /* ============== VIEWS =============== */

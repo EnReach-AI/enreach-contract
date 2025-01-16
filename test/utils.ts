@@ -7,6 +7,7 @@ import {
   MockERC20__factory,
   EnReachProtocol__factory,
   ProtocolSettings__factory,
+  RewardsDistributor__factory,
   ERC20__factory,
 } from "../typechain";
 
@@ -37,8 +38,18 @@ export async function deployContractsFixture() {
   const MockERC20 = await MockERC20Factory.deploy(await protocol.getAddress(), "ERC20 Mock", "MockERC20", 18);
   const erc20 = MockERC20__factory.connect(await MockERC20.getAddress(), provider);
 
+  const EnReachTokenFactory = await ethers.getContractFactory("EnReachToken");
+  const EnReachToken = await EnReachTokenFactory.deploy(await settings.getAddress(), "EnReach Token", "REACH");
+  const enReachToken = ERC20__factory.connect(await EnReachToken.getAddress(), provider);
+
+  const RewardsDistributorFactory = await ethers.getContractFactory("RewardsDistributor");
+  const RewardsDistributor = await RewardsDistributorFactory.deploy(
+    await protocol.getAddress(), await settings.getAddress(), await enReachToken.getAddress()
+  );
+  const rewardsDistributor = RewardsDistributor__factory.connect(await RewardsDistributor.getAddress(), provider);
+
   return { 
-    Alice, Bob, Caro, Dave, Eve, Ivy, protocol, settings, erc20
+    Alice, Bob, Caro, Dave, Eve, Ivy, protocol, settings, erc20, enReachToken, rewardsDistributor
   };
 
 }

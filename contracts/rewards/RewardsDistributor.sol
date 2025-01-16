@@ -25,10 +25,10 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
   EnumerableSet.AddressSet internal _rewarders;
 
   /// @notice Mapping: earner => total amount claimed
-  mapping(address => uint256) public cumulativeClaimed;
+  mapping(address => uint256) public cumulativeClaimedRewards;
 
   constructor(address _protocol, address _settings, address _rewardsToken) ProtocolOwner(_protocol) {
-    require(_rewardsToken != address(0) && _settings != address(0), "Zero address detected");
+    require(_settings != address(0) && _rewardsToken != address(0), "Zero address detected");
 
     settings = _settings;
     rewardsToken = _rewardsToken;
@@ -65,7 +65,7 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
   function isRewarder(address account) public view returns (bool) {
     return _rewarders.contains(account);
   }
-
+  
 
   /* ================= MUTATIVE FUNCTIONS ================ */
 
@@ -84,9 +84,9 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
     bytes32 node = keccak256(abi.encodePacked(accountIndex, account, amount));
     require(MerkleProof.verify(merkleProof, distributionRoot.merkleRoot, node), "Invalid proof");
 
-    uint256 claimAmount = amount - cumulativeClaimed[account];
-    require(claimAmount > 0, "Nothing to claim");
-    cumulativeClaimed[account] = amount;
+    require(amount > cumulativeClaimedRewards[account], "Nothing to claim");
+    uint256 claimAmount = amount - cumulativeClaimedRewards[account];
+    cumulativeClaimedRewards[account] = amount;
 
     uint256 balance = IERC20(rewardsToken).balanceOf(address(this));
     require(claimAmount <= balance, "Insufficient balance");
@@ -107,7 +107,7 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
 
     uint256 balance = IERC20(rewardsToken).balanceOf(address(this));
     if (amount <= balance) {
-      TokensTransfer.transferTokens(rewardsToken, address(this), _msgSender(), amount);
+      TokensTransfer.transferTokens(rewardsToken, address(this), recipient, amount);
     }
 
     emit Withdrawn(_msgSender(), recipient, amount);
@@ -115,10 +115,8 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
 
   function submitRewardsDistributionRoot(
     bytes32 merkleRoot, uint256 rewardsCalculationEndEpoch, uint256 rewardsCalculationEndTimestamp
-  ) external nonReentrant onlyRewarder {
+  ) external nonReentrant onlyOwnerOrRewarder {
     require(merkleRoot != bytes32(0), "Invalid root");
-    require(rewardsCalculationEndEpoch > currRewardsCalculationEndEpoch, "New root must be for newer epoch");
-    require(rewardsCalculationEndTimestamp > currRewardsCalculationEndTimestamp, "New root must be for newer calculated period");
     require(rewardsCalculationEndTimestamp < block.timestamp, "rewardsCalculationEndTimestamp cannot be in the future");
 
     uint256 activationDelay = IProtocolSettings(settings).paramValue("RewardsActivationDelay");
@@ -143,7 +141,7 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
   /**
    * @notice allow the rewarder to disable/cancel a pending root submission in case of an error
    */
-  function disableRoot(uint32 rootIndex, bytes32 merkleRoot) external nonReentrant onlyRewarder {
+  function disableRoot(uint32 rootIndex, bytes32 merkleRoot) external nonReentrant onlyOwnerOrRewarder {
     require(rootIndex < _rewardsDistributionRoots.length, "Invalid rootIndex");
 
     RewardsDistributionRoot storage distributionRoot = _rewardsDistributionRoots[rootIndex];
@@ -153,6 +151,21 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
     distributionRoot.disabled = true;
 
     emit RewardsDistributionRootDisabled(rootIndex, merkleRoot);
+  }
+
+  /**
+   * @notice allow the rewarder to enable a previously disabled pending root submission in case of an error action
+   */
+  function enableRoot(uint32 rootIndex, bytes32 merkleRoot) external nonReentrant onlyOwnerOrRewarder {
+    require(rootIndex < _rewardsDistributionRoots.length, "Invalid rootIndex");
+
+    RewardsDistributionRoot storage distributionRoot = _rewardsDistributionRoots[rootIndex];
+    require(distributionRoot.merkleRoot == merkleRoot, "Invalid root");
+    require(distributionRoot.disabled, "Root already enabled");
+    require(block.timestamp < distributionRoot.activatedAt, "Root already activated");
+    distributionRoot.disabled = false;
+
+    emit RewardsDistributionRootEnabled(rootIndex, merkleRoot);
   }
 
 
@@ -176,8 +189,8 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
 
   /* ============== MODIFIERS =============== */
 
-  modifier onlyRewarder() {
-    require(isRewarder(_msgSender()), "Caller is not rewarder");
+  modifier onlyOwnerOrRewarder() {
+    require((owner() == _msgSender()) || isRewarder(_msgSender()), "Caller is not owner or rewarder");
     _;
   }
 
@@ -195,6 +208,8 @@ contract RewardsDistributor is IRewardsDistributor, ProtocolOwner, ReentrancyGua
   );
 
   event RewardsDistributionRootDisabled(uint256 indexed rootIndex, bytes32 indexed merkleRoot);
+
+  event RewardsDistributionRootEnabled(uint256 indexed rootIndex, bytes32 indexed merkleRoot);
 
   event RewardsClaimed(uint256 indexed rootIndex, address indexed account, uint256 amount);
 
