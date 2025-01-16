@@ -159,6 +159,65 @@ describe('Rewards Distributor', () => {
     await expect(rewardsDistributor.connect(Bob).claim(1, merkleTree2.getHexRoot(), 1, Bob.address, accumulatedRewardsBob, merkleTree2.getProof(1, Bob.address, accumulatedRewardsBob)))
       .to.be.revertedWith(/Nothing to claim/);
 
+    // Third batch of rewards, for epoch 4 & 5 & 6
+    epochId = 6;
+    await time.increase(ONE_DAY_IN_SECS * 3);
+
+    const aliceRewards3 = ethers.parseUnits('100.5', await enReachToken.decimals());
+    const bobRewards3 = ethers.parseUnits('2.5', await enReachToken.decimals());
+    const caroRewards3 = ethers.parseUnits('100', await enReachToken.decimals());
+    const daveRewards3 = ethers.parseUnits('10', await enReachToken.decimals());
+
+    accumulatedRewardsAlice += aliceRewards3;
+    accumulatedRewardsBob += bobRewards3;
+    accumulatedRewardsCaro += caroRewards3;
+    accumulatedRewardsDave += daveRewards3;
+
+    newBatchRewards = aliceRewards3 + bobRewards3 + caroRewards3 + daveRewards3;
+    totalRewards += newBatchRewards;
+
+    const distributionList3 = [
+      { account: Alice.address, amount: accumulatedRewardsAlice },
+      { account: Bob.address, amount: accumulatedRewardsBob },
+      { account: Caro.address, amount: accumulatedRewardsCaro },
+      { account: Dave.address, amount: accumulatedRewardsDave },
+    ];
+    const merkleTree3 = new BalanceTree(distributionList3);
+    rewardsCalculationEndTimestamp = await time.latest();
+
+    // Add rewards for epoch 4 & 5 & 6
+    await expect(enReachToken.connect(Ivy).transfer(await rewardsDistributor.getAddress(), newBatchRewards)).not.to.be.reverted;
+
+    // Submit new merkle root
+    await expect(rewardsDistributor.connect(Bob).submitRewardsDistributionRoot(merkleTree3.getHexRoot(), epochId, rewardsCalculationEndTimestamp))
+      .to.emit(rewardsDistributor, 'RewardsDistributionRootSubmitted')
+      .withArgs(2, merkleTree3.getHexRoot(), epochId, rewardsCalculationEndTimestamp, anyValue);
+    expect(await rewardsDistributor.getRewardsDistributionRootCount()).to.equal(3);
+
+    // Could disable merkle root before activation
+    await expect(rewardsDistributor.connect(Caro).disableRoot(1, merkleTree2.getHexRoot()))
+      .to.be.revertedWith(/Caller is not owner or rewarder/); 
+    await expect(rewardsDistributor.connect(Alice).disableRoot(1, merkleTree2.getHexRoot()))
+      .to.be.revertedWith(/Root already activated/);
+    
+    await expect(rewardsDistributor.connect(Alice).disableRoot(2, merkleTree3.getHexRoot()))
+      .to.emit(rewardsDistributor, 'RewardsDistributionRootDisabled')
+      .withArgs(2, merkleTree3.getHexRoot());
+
+    // Could enable disabled merkle root before activation
+    await expect(rewardsDistributor.connect(Caro).enableRoot(2, merkleTree3.getHexRoot()))
+      .to.be.revertedWith(/Caller is not owner or rewarder/);
+    await expect(rewardsDistributor.connect(Alice).enableRoot(1, merkleTree2.getHexRoot()))
+      .to.be.revertedWith(/Root already enabled/); 
+    await expect(rewardsDistributor.connect(Alice).enableRoot(2, merkleTree3.getHexRoot()))
+      .to.emit(rewardsDistributor, 'RewardsDistributionRootEnabled')
+      .withArgs(2, merkleTree3.getHexRoot());
+
+    // Could not enable a disabled merkle root after activation
+    await expect(rewardsDistributor.connect(Alice).disableRoot(2, merkleTree3.getHexRoot())).not.to.be.reverted;
+    await time.increase(rewardsActivationDelay);
+    await expect(rewardsDistributor.connect(Alice).enableRoot(2, merkleTree3.getHexRoot()))
+      .to.be.revertedWith(/Root already activated/);
 
   });
 
