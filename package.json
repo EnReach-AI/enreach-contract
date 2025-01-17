@@ -37,5 +37,9 @@
     "typescript": "^5.4.3",
     "uuid": "^9.0.1"
   },
-  "scripts": {}
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "hardhat run scripts/1-deploy.ts --network",
+    "verify": "hardhat run scripts/verify.ts --network"
+  }
 }

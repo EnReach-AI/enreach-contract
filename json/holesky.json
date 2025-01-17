@@ -1,0 +1,29 @@
+{
+  "EnReachProtocol": {
+    "address": "0x464CBE9bEF9fa8d42FB9955e2ADbb56d6723FD5D",
+    "args": []
+  },
+  "ProtocolSettings": {
+    "address": "0xa216814E345E83181563cc6380E3ddEe7d035308",
+    "args": [
+      "0x464CBE9bEF9fa8d42FB9955e2ADbb56d6723FD5D",
+      "0xBBc5A8E9a80a5Ffc6548d5360B4c73C20FCB3B21"
+    ]
+  },
+  "EnReachToken": {
+    "address": "0x0B82965239817342a2bB56951F13a9df581686A9",
+    "args": [
+      "0xa216814E345E83181563cc6380E3ddEe7d035308",
+      "EnReach Token",
+      "REACH"
+    ]
+  },
+  "RewardsDistributor": {
+    "address": "0x38a1bB0471817C7E0D14Bdd0Ad34B7A49AedceB5",
+    "args": [
+      "0x464CBE9bEF9fa8d42FB9955e2ADbb56d6723FD5D",
+      "0xa216814E345E83181563cc6380E3ddEe7d035308",
+      "0x0B82965239817342a2bB56951F13a9df581686A9"
+    ]
+  }
+}

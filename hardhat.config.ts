@@ -16,6 +16,7 @@ const chainIds = {
   ganache: 1337,
   mainnet: 1,
   sepolia: 11155111,
+  holesky: 17000
 };
 
 // Ensure that we have all the environment variables we need.
@@ -34,6 +35,9 @@ function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig 
       break;
     case "sepolia":
       nodeUrl = `https://sepolia.infura.io/v3/${infuraKey}`;
+      break;
+    case "holesky":
+      nodeUrl = `https://holesky.infura.io/v3/${infuraKey}`;
       break;
   }
 
@@ -96,7 +100,8 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       mainnet: process.env.ETHERSCAN_KEY || "",
-      sepolia: process.env.ETHERSCAN_KEY || ""
+      sepolia: process.env.ETHERSCAN_KEY || "",
+      holesky: process.env.ETHERSCAN_KEY || ""
     },
     customChains: [
 
@@ -108,6 +113,7 @@ if (deployerKey) {
   config.networks = {
     mainnet: createTestnetConfig("mainnet"),
     sepolia: createTestnetConfig("sepolia"),
+    holesky: createTestnetConfig("holesky"),
   };
 }
 
